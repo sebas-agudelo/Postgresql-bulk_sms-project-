@@ -1,0 +1,42 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"] 
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model bulk_sms_users {
+  id           String   @id @default(cuid()) 
+  profileName  String  
+  message      String  
+  scheduleDate String   @db.VarChar(100)
+  created      DateTime 
+  modified     DateTime? 
+}
+
+model participants {
+  id               String   @id @default(cuid()) 
+  userId           String? 
+  name             String  @db.VarChar(50)  
+  phone            String  @db.VarChar(50)
+  couponSend       Int     @default(0) 
+  sms_parts        String?  @db.VarChar(50) 
+  sms_cost         String?  @db.VarChar(50) 
+  sent_date_time   String?  @db.VarChar(100) 
+  sms_created_time String?  @db.VarChar(100) 
+  sms_id           String?  @db.VarChar(200) 
+  created          DateTime @default(now()) 
+  modified         DateTime?    
+}
+
+
+
