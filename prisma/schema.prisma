@@ -19,8 +19,8 @@ model bulk_sms_users {
   profileName  String  
   message      String  
   scheduleDate String   @db.VarChar(100)
-  created      DateTime 
-  modified     DateTime? 
+  created      DateTime @default(now()) 
+  modified     DateTime? @default(now()) 
 }
 
 model participants {
@@ -35,7 +35,7 @@ model participants {
   sms_created_time String?  @db.VarChar(100) 
   sms_id           String?  @db.VarChar(200) 
   created          DateTime @default(now()) 
-  modified         DateTime?    
+  modified         DateTime? @default(now()) 
 }
 
 
