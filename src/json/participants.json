@@ -1,16 +1,15 @@
-{
+{   
+    "profileName": "example",
+    "message": "Hi",
+    "scheduledTime": "2025-03-10 19:00:00",
     "data": [
-      {
-        "profileName": "example",
-        "message": "Hi",
-        "scheduleDate": "25-03-07 12:00:00",
-        "participants": [
-          {
+        {
             "name": "Sebastian",
             "phone": "0734499009"
-          }
-        ]
-      }
+        },
+        {
+            "name": "Sender1",
+            "phone": "07123456789"
+        }
     ]
   }
-  
