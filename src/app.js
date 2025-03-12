@@ -14,6 +14,7 @@ const prisma = new PrismaClient();
 
 app.post("/payload", async (req, res) => {
   let FailedData = [];
+  let FinalFailedData = [];
 
   try {
     const user = await prisma.bulk_sms_users.create({
@@ -25,7 +26,6 @@ app.post("/payload", async (req, res) => {
       },
     });
 
-
     for (const participant of participants_data) {
       try {
         await prisma.participants.create({
@@ -35,33 +35,37 @@ app.post("/payload", async (req, res) => {
             phone: participant.phone,
             created: new Date(),
           },
-        })
+        });
       } catch (error) {
+        console.error(error);
         FailedData.push({
           name: participant.name,
           phone: participant.phone,
-        })
+        });
       }
     }
 
-    if (FailedData.length > 0) {
-      for (const failed_participants of FailedData) {
-        try {
-           await prisma.participants.create({
+    for (const failed_participants of FailedData) {
+      try {
+        await prisma.participants.create({
           data: {
             userId: user.id,
             name: failed_participants.name,
             phone: failed_participants.phone,
             created: new Date(),
           },
-        })
-        } catch (error) {
-          return res.status(400).json({
-            message: `Something went wrong with one or more participants from the account: ${users_data.profileName}`,
-            error: error,
-          });
-        }
+        });
+      } catch (error) {
+        console.error(error);
+        FinalFailedData.push(failed_participants);
       }
+    }
+
+    if (FinalFailedData.length > 0) {
+      return res.status(400).json({
+        message: `Something went wrong with one or more participants, at the first and second attempt`,
+        failedParticipants: FinalFailedData,
+      });
     }
 
     return res
