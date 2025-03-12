@@ -1,5 +1,5 @@
 {   
-    "profileName": "example",
+    "profileName": "",
     "message": "Hi",
     "scheduledTime": "2025-03-10 19:00:00",
     "data": [
@@ -12,4 +12,6 @@
             "phone": "07123456789"
         }
     ]
+    
   }
+  
