@@ -17,15 +17,14 @@ const getParticipants = async () => {
     participant_ids = get_participants;
     console.log(participant_ids);
   } catch (error) {
-    console.error(
-      "Kunde inte hämta användaren kolla på följande fel ---> ",
-      error
-    );
+    console.error("Kunde inte hämta användaren kolla på följande fel ---> ", error);
   }
 };
 
 export const rabbitmq_producer = async () => {
-  const queue = "participants";
+  const exchange = "delayed_exchange";
+  const queue = "participants_queue";
+  const routingKey = "participants"; 
 
   await getParticipants();
 
@@ -33,16 +32,29 @@ export const rabbitmq_producer = async () => {
     const connection = await amqp.connect(rabbitmqUrl);
     const channel = await connection.createChannel();
 
+    await channel.assertExchange(exchange, "x-delayed-message", {
+      durable: true,
+      arguments: { "x-delayed-type": "direct" },
+    });
+
     await channel.assertQueue(queue, { durable: true });
+    await channel.bindQueue(queue, exchange, routingKey);
 
     for (const participant of participant_ids) {
-      const partcipant_ids_message = JSON.stringify(participant);
-      channel.sendToQueue(queue, Buffer.from(partcipant_ids_message), {
-        persistent: true
+      const partcipant_ids_message = JSON.stringify({
+        id: participant,
+        timestamp: Date.now(),
       });
-    }
 
-    console.log("Meddelandet har skickats till RabbitMQ:");
+      const delay = 10000;
+
+      channel.publish(exchange, routingKey, Buffer.from(partcipant_ids_message), {
+        persistent: true,
+        headers: { "x-delay": delay },
+      });
+      
+      console.log(`Meddelande skickat med ${delay}ms fördröjning:`, participant);
+    }
 
     await channel.close();
     await connection.close();
