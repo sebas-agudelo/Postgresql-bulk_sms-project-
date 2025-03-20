@@ -1,7 +1,7 @@
 import express from "express";
 import dotenv from "dotenv";
 import { insertUsersData } from "./db_insert/insert_data.js";
-import { rabbitmq_producer } from "./rabbitmq/producer.js";
+import { getScheduleDate, rabbitmq_producer } from "./rabbitmq/producer.js";
 import { rabbitmq_consumer } from "./rabbitmq/coscumer.js";
 
 dotenv.config();
@@ -27,6 +27,7 @@ app.post('/payload', async (req, res) => {
   }
 
   await rabbitmq_consumer();
+
 });
 
 const PORT = process.env.PORT || 3000;
