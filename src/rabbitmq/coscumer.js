@@ -29,12 +29,27 @@ export const rabbitmq_consumer = async () => {
         try {
           const participant_data = msg.content.toString();
           const ids = participant_data.id;
-          
+
           const participant = await prisma.participants.findMany({
             where: { id: ids },
           });
 
           console.log("Hämtade deltagare:", participant);
+
+          const user_id = participant.map(p => p.userId);
+
+          console.log("Alla userId",user_id);
+          
+          const users_message = await prisma.bulk_sms_users.findMany({
+            where: { 
+              id: {in: user_id}
+             },
+            select: {
+              message: true
+            }
+          })
+
+          console.log("Hämtade message:", users_message);
 
           channel.ack(msg);
         } catch (error) {
