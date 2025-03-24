@@ -1,16 +1,16 @@
 import { faker } from "@faker-js/faker";
 
 export const users_data = {
-    profileName: faker.person.fullName(),
-    message: faker.lorem.sentence(),
+    profileName: "Adoveo",
+    message: "Hej! Det här är ett sms från Adoveo",
     scheduledTime: faker.date.recent().toISOString(),
     data: [],
   };
   
-  for (let i = 0; i < 1; i++) {
+  for (let i = 0; i < 2000; i++) {
     const fake_data = {
       name: faker.person.fullName(),
-      phone: faker.phone.number(),
+      phone: "+46735658307",
     };
     users_data.data.push(fake_data);
   }

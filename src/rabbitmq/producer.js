@@ -4,59 +4,40 @@ import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
 const rabbitmqUrl = `amqp://${process.env.RABBITMQ_DEFAULT_USER}:${process.env.RABBITMQ_DEFAULT_PASS}@${process.env.RABBITMQ_HOST}:5672`;
-let participant_ids;
-let the_delay; 
-
-const getParticipants = async () => {
-  try {
-    const get_participants = await prisma.participants.findMany({
-      select: {
-        id: true,
-      },
-    });
-    
-    participant_ids = get_participants;
-
-    console.log(participant_ids);
-  } catch (error) {
-    console.error("Kunde inte hämta användaren kolla på följande fel ---> ", error);
-  }
-};
-
-export const getScheduleDate = async () => {
-  try{
-    const get_schedule_date = await prisma.bulk_sms_users.findMany({
-      select: {
-        scheduleDate: true
-      }
-    });
-
-    if(get_schedule_date.length === 0){
-      console.log(`Finns inga schedule datum att hämta`);
-      return
-    }
-
-    const schedule_date = new Date(get_schedule_date[0].scheduleDate);
-    const current_date = new Date();
-    the_delay = schedule_date - current_date;
-    
-    console.log(the_delay);
-    
-  }catch(error){
-    console.error("Kunde inte hämta schedule date kolla på följande fel ---> ", error);
-    
-  }
-}
 
 export const rabbitmq_producer = async () => {
   const exchange = "delayed_exchange";
   const queue = "participants_queue";
-  const routingKey = "participants"; 
-
-  await getParticipants();
-  await getScheduleDate();
+  const routingKey = "participants";
 
   try {
+    const current_date = new Date().toISOString();
+
+    const bulkUsers = await prisma.bulk_sms_users.findMany({
+      where: {
+        scheduleDate: {
+          gte: current_date,
+        },
+      },
+      select: { id: true, scheduleDate: true },
+      distinct: "id",
+    });
+
+    const scheduleMap = new Map();
+    bulkUsers.forEach((entry) => {
+      scheduleMap.set(entry.id, new Date(entry.scheduleDate));
+    });
+
+    const participants = await prisma.participants.findMany({
+      where: {
+        userId: { in: bulkUsers.map((user) => user.id) },
+      },
+      select: {
+        id: true,
+        userId: true,
+      },
+    });
+
     const connection = await amqp.connect(rabbitmqUrl);
     const channel = await connection.createChannel();
 
@@ -68,24 +49,29 @@ export const rabbitmq_producer = async () => {
     await channel.assertQueue(queue, { durable: true });
     await channel.bindQueue(queue, exchange, routingKey);
 
-    for (const participant of participant_ids) {
-      const partcipant_ids_message = JSON.stringify({
-        id: participant.id,
-      });
+    const now = new Date();
+    for (const participant of participants) {
+      const scheduleDate = scheduleMap.get(participant.userId);
+      if (!scheduleDate) continue;
 
-      const delay = 5000;
+      const delay = scheduleDate - now;
 
-      channel.publish(exchange, routingKey, Buffer.from(partcipant_ids_message), {
+      const message = JSON.stringify({ id: participant.id });
+
+      channel.publish(exchange, routingKey, Buffer.from(message), {
         persistent: true,
         headers: { "x-delay": delay },
       });
-      
-      console.log(`Meddelande skickat med ${delay}ms fördröjning:`, participant);
+
+      console.log(
+        `Skickade participant ID ${participant.id} med ${delay}ms fördröjning`
+      );
     }
 
     await channel.close();
     await connection.close();
+    await prisma.$disconnect();
   } catch (error) {
-    console.error("Error al conectar a RabbitMQ:", error);
+    console.error("Error vid RabbitMQ-produktion:", error);
   }
 };

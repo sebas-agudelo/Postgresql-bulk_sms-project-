@@ -1,5 +1,6 @@
 import amqp from "amqplib";
 import { PrismaClient } from "@prisma/client";
+import { sendSms } from "../46elks/46elks_sms_sendout.js";
 
 const rabbitmqUrl = `amqp://${process.env.RABBITMQ_DEFAULT_USER}:${process.env.RABBITMQ_DEFAULT_PASS}@${process.env.RABBITMQ_HOST}:5672`;
 const prisma = new PrismaClient();
@@ -27,31 +28,58 @@ export const rabbitmq_consumer = async () => {
     async (msg) => {
       if (msg) {
         try {
-          const participant_data = msg.content.toString();
-          const ids = participant_data.id;
+          const participant_data = JSON.parse(msg.content.toString());
 
-          const participant = await prisma.participants.findMany({
-            where: { id: ids },
+          if (!participant_data || !participant_data.id){
+            console.log(
+              "Datan från rabbitmq producer med deltagar ID är tom...."
+            );
+            return;
+          }
+
+          const participant = await prisma.participants.findUnique({
+            where: { id: participant_data.id },
+            select: {
+              id: true,
+              phone: true,
+              userId: true,
+            },
           });
 
-          console.log("Hämtade deltagare:", participant);
+          if (!participant || !participant.id) {
+            console.log(
+              "Finns inga deltagare att hämta baserad på deltar ID:et...."
+            );
+            return;
+          }
 
-          const user_id = participant.map(p => p.userId);
-
-          console.log("Alla userId",user_id);
-          
-          const users_message = await prisma.bulk_sms_users.findMany({
-            where: { 
-              id: {in: user_id}
-             },
+          const user_data = await prisma.bulk_sms_users.findUnique({
+            where: { id: participant.userId },
             select: {
-              message: true
-            }
-          })
+              id: true,
+              profileName: true,
+              message: true,
+            },
+          });
 
-          console.log("Hämtade message:", users_message);
+          if (!user_data || !user_data.id){
+            console.log(
+              "Finns ingen användare att hämta baserad på användar ID:et från participants...."
+            );
+            return;
 
-          channel.ack(msg);
+          } else {
+            await sendSms(
+              user_data.profileName,
+              participant.phone,
+              user_data.message,
+              participant.id,
+              true
+            );
+          }
+
+          channel.ack(msg)
+
         } catch (error) {
           console.error("Fel vid bearbetning av meddelande:", error);
         }
