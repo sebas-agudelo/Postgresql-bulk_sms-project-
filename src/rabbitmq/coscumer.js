@@ -9,6 +9,8 @@ export const rabbitmq_consumer = async () => {
   const exchange = "delayed_exchange";
   const queue = "participants_queue";
   const routingKey = "participants";
+  const batchSize = 50;
+  let batch = [];
 
   const connection = await amqp.connect(rabbitmqUrl);
   const channel = await connection.createChannel();
@@ -67,17 +69,20 @@ export const rabbitmq_consumer = async () => {
               "Finns ingen användare att hämta baserad på användar ID:et från participants...."
             );
             return;
+          };
 
-          } else {
-            await sendSms(
-              user_data.profileName,
-              participant.phone,
-              user_data.message,
-              participant.id,
-              true
-            );
+          batch.push({
+            profileName: user_data.profileName,
+            phone: participant.phone,
+            message: user_data.message,
+            participant_id: participant.id
+          })
+
+          if(batch.length >= batchSize){
+            await sendBatchSms(batch);
+            batch = [];
           }
-
+          
           channel.ack(msg)
 
         } catch (error) {
@@ -87,4 +92,14 @@ export const rabbitmq_consumer = async () => {
     },
     { noAck: false }
   );
+};
+
+const sendBatchSms = async (batch) => {
+  try {
+    for (let sms of batch) {
+      await sendSms(sms.profileName, sms.phone, sms.message, sms.participant_id, true);
+    }
+  } catch (error) {
+    console.error("Fel vid batchutskick av SMS:", error);
+  }
 };
