@@ -38,38 +38,30 @@ export const rabbitmq_producer = async () => {
       },
     });
 
-    const connection = await amqp.connect(rabbitmqUrl);
+    for (const participant of participants) {
+      const scheduleDate = scheduleMap.get(participant.userId);
+      if (!scheduleDate) continue;
+      const now = new Date();
+      const delay = scheduleDate - now;
+      const connection = await amqp.connect(rabbitmqUrl);
     const channel = await connection.createChannel();
-
     await channel.assertExchange(exchange, "x-delayed-message", {
       durable: true,
       arguments: { "x-delayed-type": "direct" },
     });
-
     await channel.assertQueue(queue, { durable: true });
     await channel.bindQueue(queue, exchange, routingKey);
-
-    const now = new Date();
-    for (const participant of participants) {
-      const scheduleDate = scheduleMap.get(participant.userId);
-      if (!scheduleDate) continue;
-
-      const delay = scheduleDate - now;
-
       const message = JSON.stringify({ id: participant.id });
-
       channel.publish(exchange, routingKey, Buffer.from(message), {
         persistent: true,
         headers: { "x-delay": delay },
       });
-
       console.log(
         `Skickade participant ID ${participant.id} med ${delay}ms fördröjning`
       );
-    }
-
     await channel.close();
     await connection.close();
+    }
     await prisma.$disconnect();
   } catch (error) {
     console.error("Error vid RabbitMQ-produktion:", error);

@@ -7,7 +7,7 @@ export const users_data = {
     data: [],
   };
   
-  for (let i = 0; i < 50; i++) {
+  for (let i = 0; i < 5000; i++) {
     const fake_data = {
       name: faker.person.fullName(),
       phone: "+46735658307",

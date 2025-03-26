@@ -37,10 +37,8 @@
         const sms_parts = data.parts;
         const to = data.to;
         const participantId = participant_id;
-
-        // console.log(participantId);
         
-
+        
         await updateSmsData(estimated_cost, sms_parts, to, participantId);
 
         console.log("SMS skickat till:", to, "Svar:", data);
