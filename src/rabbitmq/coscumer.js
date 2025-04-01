@@ -24,7 +24,7 @@ export const rabbitmq_consumer = async () => {
 
     channel.prefetch(500); 
 
-    console.log("✅ Konsumenten väntar på meddelanden...");
+    console.log("Konsumenten väntar på meddelanden...");
 
     channel.consume(
       queue,
@@ -32,10 +32,10 @@ export const rabbitmq_consumer = async () => {
         if (msg) {
           try {
             const participant_data = JSON.parse(msg.content.toString());
-            console.log(`📩 Mottagit deltagar-ID: ${participant_data.id}`);
+            console.log(`Mottagit deltagar-ID: ${participant_data.id}`);
 
             if (!participant_data?.id) {
-              console.log("⚠️ Tomt deltagar-ID, ignorerar meddelande.");
+              console.log("Tomt deltagar-ID, ignorerar meddelande.");
               channel.ack(msg);
               return;
             }
@@ -46,7 +46,7 @@ export const rabbitmq_consumer = async () => {
             });
 
             if (!participant) {
-              console.log("⚠️ Deltagaren hittades inte.");
+              console.log("Deltagaren hittades inte.");
               channel.ack(msg);
               return;
             }
@@ -57,26 +57,25 @@ export const rabbitmq_consumer = async () => {
             });
 
             if (!user_data) {
-              console.log("⚠️ Användaren hittades inte.");
+              console.log("Användaren hittades inte.");
               channel.ack(msg);
               return;
             }
 
-            // Skicka SMS
             await sendSms(user_data.profileName, participant.phone, user_data.message, participant.id, true);
-            console.log(`✅ SMS skickat till: ${participant.phone}`);
+            console.log(`SMS skickat till: ${participant.phone}`);
 
-            channel.ack(msg); // Bekräfta att meddelandet har behandlats
+            channel.ack(msg); 
           } catch (error) {
-            console.error("🚨 Fel vid bearbetning av meddelande:", error);
-            channel.nack(msg, false, true); // Släng meddelandet om det är korrupt
+            console.error("Fel vid bearbetning av meddelande:", error);
+            channel.nack(msg, false, true); 
           }
         }
       },
       { noAck: false }
     );
   } catch (error) {
-    console.error("🚨 Fel vid anslutning till RabbitMQ:", error);
+    console.error("Fel vid anslutning till RabbitMQ:", error);
   }
 };
 
