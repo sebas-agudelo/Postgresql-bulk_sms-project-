@@ -35,7 +35,7 @@ export const rabbitmq_consumer = async () => {
             console.log(`Mottagit deltagar-ID: ${participant_data.id}`);
 
             if (!participant_data?.id) {
-              console.log("Tomt deltagar-ID, ignorerar meddelande.");
+              console.log("Tomt deltagar-ID, ignorerar meddelande..");
               channel.ack(msg);
               return;
             }
