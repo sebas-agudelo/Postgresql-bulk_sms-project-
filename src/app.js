@@ -47,7 +47,7 @@ const startConsumer = async () => {
 startConsumer();
 
 app.post('/getParticipantsByPage', async (req, res) => {
-  const page = req.body.pageId || 1;
+  const page = 1;
   const pageSize = 500;
 
   try{
