@@ -40,8 +40,7 @@
         
         
         await updateSmsData(estimated_cost, sms_parts, to, participantId);
-
-        console.log("SMS skickat till:", to, "Svar:", data);
+        
       } else {
         const errorText = await response.text();
         console.error("Fel vid SMS-sändning. API svarade med:", errorText);

@@ -38,7 +38,7 @@ const startConsumer = async () => {
       );
       startConsumer();
     }
-  }, 10000);
+  }, 5000);
 };
 
 startConsumer();

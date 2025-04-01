@@ -9,98 +9,74 @@ export const rabbitmq_consumer = async () => {
   const exchange = "delayed_exchange";
   const queue = "participants_queue";
   const routingKey = "participants";
-  const batchSize = 1000; 
-  let batchCounter = 0;
-  let currentBatch = [];
 
-  const connection = await amqp.connect(rabbitmqUrl);
-  const channel = await connection.createChannel();
+  try {
+    const connection = await amqp.connect(rabbitmqUrl);
+    const channel = await connection.createChannel();
 
-  await channel.assertExchange(exchange, "x-delayed-message", {
-    durable: true,
-    arguments: { "x-delayed-type": "direct" },
-  });
+    await channel.assertExchange(exchange, "x-delayed-message", {
+      durable: true,
+      arguments: { "x-delayed-type": "direct" },
+    });
 
-  await channel.assertQueue(queue, { durable: true });
-  await channel.bindQueue(queue, exchange, routingKey);
+    await channel.assertQueue(queue, { durable: true });
+    await channel.bindQueue(queue, exchange, routingKey);
 
-  console.log("Konsumenten väntar på fördröjda meddelanden...");
+    channel.prefetch(500); 
 
-  const processMessage = async (msg) => {
-    try {
-      const participant_data = JSON.parse(msg.content.toString());
-      console.log("Meddelande mottaget");
+    console.log("✅ Konsumenten väntar på meddelanden...");
 
-      if (!participant_data || !participant_data.id) {
-        console.log("Datan från rabbitmq producer med deltagar ID är tom....");
-        channel.ack(msg);
-        return;
-      }
+    channel.consume(
+      queue,
+      async (msg) => {
+        if (msg) {
+          try {
+            const participant_data = JSON.parse(msg.content.toString());
+            console.log(`📩 Mottagit deltagar-ID: ${participant_data.id}`);
 
-      const participant = await prisma.participants.findUnique({
-        where: { id: participant_data.id },
-        select: {
-          id: true,
-          phone: true,
-          userId: true,
-        },
-      });
+            if (!participant_data?.id) {
+              console.log("⚠️ Tomt deltagar-ID, ignorerar meddelande.");
+              channel.ack(msg);
+              return;
+            }
 
-      if (!participant || !participant.id) {
-        console.log("Finns inga deltagare att hämta baserat på deltagar-ID....");
-        channel.ack(msg);
-        return;
-      }
+            const participant = await prisma.participants.findUnique({
+              where: { id: participant_data.id },
+              select: { id: true, phone: true, userId: true },
+            });
 
-      const user_data = await prisma.bulk_sms_users.findUnique({
-        where: { id: participant.userId },
-        select: {
-          id: true,
-          profileName: true,
-          message: true,
-        },
-      });
+            if (!participant) {
+              console.log("⚠️ Deltagaren hittades inte.");
+              channel.ack(msg);
+              return;
+            }
 
-      if (!user_data || !user_data.id) {
-        console.log("Finns ingen användare att hämta baserat på användar-ID....");
-        channel.ack(msg);
-        return;
-      }
+            const user_data = await prisma.bulk_sms_users.findUnique({
+              where: { id: participant.userId },
+              select: { profileName: true, message: true },
+            });
 
-      await sendSms(
-        user_data.profileName, 
-        participant.phone, 
-        user_data.message, 
-        participant.id
-      );
+            if (!user_data) {
+              console.log("⚠️ Användaren hittades inte.");
+              channel.ack(msg);
+              return;
+            }
 
-      channel.ack(msg);
-    } catch (error) {
-      console.error("Fel vid bearbetning av meddelande:", error);
-      channel.nack(msg, false, false);
-    }
-  };
+            // Skicka SMS
+            await sendSms(user_data.profileName, participant.phone, user_data.message, participant.id, true);
+            console.log(`✅ SMS skickat till: ${participant.phone}`);
 
-  const processBatchSequentially = async (batch) => {
-    for (const msg of batch) {
-      await processMessage(msg); 
-    }
-    batchCounter ++;
-    console.log("Antal batchar som skickats", batchCounter);
-  };
-
-  channel.consume(
-    queue,
-    async (msg) => {
-      if (msg) {
-        currentBatch.push(msg);  
-        if (currentBatch.length >= batchSize) {
-          const batchToProcess = [...currentBatch];
-          currentBatch = [];
-          await processBatchSequentially(batchToProcess); 
+            channel.ack(msg); // Bekräfta att meddelandet har behandlats
+          } catch (error) {
+            console.error("🚨 Fel vid bearbetning av meddelande:", error);
+            channel.nack(msg, false, true); // Släng meddelandet om det är korrupt
+          }
         }
-      }
-    },
-    { noAck: false }
-  );
+      },
+      { noAck: false }
+    );
+  } catch (error) {
+    console.error("🚨 Fel vid anslutning till RabbitMQ:", error);
+  }
 };
+
