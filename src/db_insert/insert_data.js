@@ -17,10 +17,14 @@ export const insertUsersData = async (req, res) => {
           data: {
             profileName: users_data.profileName,
             message: users_data.message,
+            campaign_id: users_data.campaign_id,
             scheduleDate: users_data.scheduledTime,
             created: new Date(),
           },
         });
+
+        console.log("Inserted user",user);
+        
     
         for (const participant of participants_data) {
           try {
@@ -68,6 +72,8 @@ export const insertUsersData = async (req, res) => {
           .status(200)
           .json("The data has been inserted into the database.");
       } catch (error) {
-        return res.status(500).json({ error: "Something went wrong" });
+        console.log(error);
+        
+        return res.status(500).json({ error: "Something went wrong", error});
       }
 };

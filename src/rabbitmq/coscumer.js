@@ -1,9 +1,8 @@
 import amqp from "amqplib";
-import { PrismaClient } from "@prisma/client";
 import { sendSms } from "../46elks/46elks_sms_sendout.js";
+import { prisma } from "../../prisma/prismaClient.js";
 
 const rabbitmqUrl = `amqp://${process.env.RABBITMQ_DEFAULT_USER}:${process.env.RABBITMQ_DEFAULT_PASS}@${process.env.RABBITMQ_HOST}:5672`;
-const prisma = new PrismaClient();
 
 export const rabbitmq_consumer = async () => {
   const exchange = "delayed_exchange";
@@ -22,7 +21,7 @@ export const rabbitmq_consumer = async () => {
     await channel.assertQueue(queue, { durable: true });
     await channel.bindQueue(queue, exchange, routingKey);
 
-    channel.prefetch(500); 
+    channel.prefetch(500);
 
     console.log("Konsumenten väntar på meddelanden...");
 
@@ -42,7 +41,7 @@ export const rabbitmq_consumer = async () => {
 
             const participant = await prisma.participants.findUnique({
               where: { id: participant_data.id },
-              select: { id: true, phone: true, userId: true },
+              select: { id: true, phone: true, userId: true, pcode: true, coupon_sent: true, sms_sent: true },
             });
 
             if (!participant) {
@@ -56,19 +55,35 @@ export const rabbitmq_consumer = async () => {
               select: { profileName: true, message: true },
             });
 
+            let updatedMessage = user_data.message;
+
+            if (user_data.message.includes("{landing_url}")) {
+              updatedMessage = user_data.message.replace(
+                /{landing_url}/g,
+                `${user_data.profileName}.${process.env.domainName}.com/c/${participant.pcode}`
+              );
+            }
+
             if (!user_data) {
               console.log("Användaren hittades inte.");
               channel.ack(msg);
               return;
             }
 
-            await sendSms(user_data.profileName, participant.phone, user_data.message, participant.id, true);
-            console.log(`SMS skickat till: ${participant.phone}`);
+            await sendSms(
+              user_data.profileName,
+              participant.phone,
+              updatedMessage,
+              participant.id,
+              participant.coupon_sent,
+              participant.sms_sent,
+              true
+            );
 
-            channel.ack(msg); 
+            channel.ack(msg);
           } catch (error) {
             console.error("Fel vid bearbetning av meddelande:", error);
-            channel.nack(msg, false, true); 
+            channel.nack(msg, false, true);
           }
         }
       },
@@ -78,4 +93,3 @@ export const rabbitmq_consumer = async () => {
     console.error("Fel vid anslutning till RabbitMQ:", error);
   }
 };
-

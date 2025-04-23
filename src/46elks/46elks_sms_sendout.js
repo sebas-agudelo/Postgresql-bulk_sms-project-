@@ -9,7 +9,7 @@
     process.env.ELKS_USERNAME + ":" + process.env.ELKS_PASSWORD
   ).toString("base64");
 
-  export const sendSms = async (from, to, message, participant_id, dryrun = true) => {
+  export const sendSms = async (from, to, message, participant_id, coupon_sent, sms_sent, dryrun = true) => {
     
     try {
       const formData = new URLSearchParams();
@@ -30,16 +30,24 @@
         body: formData,
       });
 
+      console.log(formData);
+      
+
       if (response.ok) {
         const data = await response.json();
-
+ 
+        const sms_id = data.id || null;
         const estimated_cost = data.estimated_cost;
         const sms_parts = data.parts;
         const to = data.to;
         const participantId = participant_id;
+        const couponSent = coupon_sent;
+        const smsSent = sms_sent;
+        
+        console.log(data);
         
         
-        await updateSmsData(estimated_cost, sms_parts, to, participantId);
+        await updateSmsData(sms_id, estimated_cost, sms_parts, to, participantId, couponSent, smsSent);
         
       } else {
         const errorText = await response.text();

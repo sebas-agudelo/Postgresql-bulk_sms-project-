@@ -3,6 +3,7 @@ import { faker } from "@faker-js/faker";
 export const users_data = {
     profileName: "Adoveo",
     message: "Hej! Det här är ett sms från Adoveo",
+    campaign_id: faker.number.int({max: 100}),
     scheduledTime: faker.date.recent().toISOString(),
     data: [],
   };
