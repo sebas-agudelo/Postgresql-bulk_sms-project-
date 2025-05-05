@@ -1,6 +1,6 @@
 import { prisma } from '../../prisma/prismaClient.js'
 
-export const updateSmsData = async (sms_id, estimated_cost, sms_parts, to, participantId) => {
+export const updateSmsData = async (sms_id, estimated_cost, sms_parts, participantId) => {
     try {
       const update = await prisma.participants.update({
         where: {

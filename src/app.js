@@ -13,7 +13,7 @@ app.use(express.json());
 
 app.post('/getParticipantsByPage', getParticipantsByPage);
 app.get('/getAllParticipantsData', getAllParticipantsData);
-app.post('/getParticipantByPcode', getParticipantByPcode);
+app.post('/getParticipantByPcode/:pcode', getParticipantByPcode);
 
 
 app.post("/payload", async (req, res) => {

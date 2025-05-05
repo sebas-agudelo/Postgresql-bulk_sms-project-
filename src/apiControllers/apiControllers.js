@@ -2,64 +2,43 @@ import { prisma } from "../../prisma/prismaClient.js";
 
 //Get Participants By Page
 export const getParticipantsByPage = async (req, res) => {
-  const { profileName, campaignId, scheuledDate } = req.body;
-  const page = 1;
-  const pageSize = 50;
+  const { profileName, campaignId, scheuledDate, page } = req.body;
+  const laPage = page;
+  const pageSize = 400;
   try {
-    const chars =
-      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-
     const countParticipants = await prisma.participants.count();
     const TotalNumberofPages = Math.ceil(countParticipants / pageSize);
 
     const users = await prisma.bulk_sms_users.findMany({
-        where: {
-            profileName: profileName,
-            campaign_id: campaignId,
-            scheduleDate: scheuledDate,
-          },
+      where: {
+        profileName: profileName,
+        campaign_id: campaignId,
+        scheduleDate: scheuledDate,
+      },
       select: {
         id: true,
       },
     });
     const userIds = users.map((user) => user.id);
 
+    const skip = (laPage - 1) * pageSize;
+
     const participantsData = await prisma.participants.findMany({
       where: {
         userId: { in: userIds },
       },
-      skip: page - 1,
+      skip,
       take: pageSize,
-    });
-
-    //
-    if(participantsData.length === 0){
-        return res
-        .status(200)
-        .json({message: "Inga participants hittades...."})
-    }
-
-    let p_code = participantsData.map((p) => p.id);
-
-    p_code = p_code.map(() => {
-      let newId = "";
-      for (let i = 0; i < 5; i++) {
-        newId += chars[Math.floor(Math.random() * chars.length)];
+      orderBy: {
+        created: "asc",
       }
-      return newId;
     });
 
-    for (let i = 0; i < participantsData.length; i++) {
-      let p = participantsData[i];
-
-      let newId = p_code[i];
-      await prisma.participants.update({
-        where: { id: p.id },
-        data: {
-          pcode: newId,
-        },
-      });
-    }
+    if (participantsData.length === 0) {
+      return res
+        .status(200)
+        .json({ message: "Inga participants hittades...." });
+    };
 
     return res.status(200).json({
       data: participantsData,
@@ -69,7 +48,7 @@ export const getParticipantsByPage = async (req, res) => {
   } catch (error) {
     console.error("SERVER ERROR - Get Participants By Page", error);
     return res.status(500).json({ error: "Ett oväntat fel har inträffat...." });
-  }
+  };
 };
 
 //Get All Participants Data
@@ -131,7 +110,11 @@ export const getAllParticipantsData = async (req, res) => {
       }
     );
 
-    return res.status(200).json(result);
+    const lll = [];
+    
+    lll.push(result)
+
+    return res.status(200).json({data: lll});
   } catch (error) {
     console.error("SERVER ERROR - Get All Participants Data", error);
     return res.status(500).json({ error: "Ett oväntat fel har inträffat...." });

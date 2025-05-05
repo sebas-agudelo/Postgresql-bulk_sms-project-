@@ -21,10 +21,7 @@ export const insertUsersData = async (req, res) => {
             scheduleDate: users_data.scheduledTime,
             created: new Date(),
           },
-        });
-
-        console.log("Inserted user",user);
-        
+        });        
     
         for (const participant of participants_data) {
           try {
@@ -43,7 +40,7 @@ export const insertUsersData = async (req, res) => {
               phone: participant.phone,
             });
           }
-        }
+        };
     
         for (const failed_participants of FailedData) {
           try {
